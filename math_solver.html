@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Animated Math Solver</title>
+    
+    <!-- PWA METADATA for Cross-Platform Installation -->
+    <meta name="theme-color" content="#4f46e5">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Math Solver">
+    
+    <!-- PWA MANIFEST (Embedded as Data URI to keep it a single file) -->
+    <!-- This allows the app to be "installed" on mobile and desktop -->
+    <link rel="manifest" href="data:application/json;charset=utf-8;base64,eyJpY29ucyI6IFt7InNpemVzIjogIjE5MngxOTAiLCAidHlwZSI6ICJpbWFnZS9wbmciLCAic3JjIjogImh0dHBzOi8vcGxhY2Vob2xkLmNvLzE5MngxOTAvM2I4MmYzLzZmNjVmYj90ZXh0PU1TIn0seyJzaXplcyI6ICI1MTJ4NTEyIiwgInR5cGUiOiAiaW1hZ2UvcG5nIiAyYzE1OWMiLCAic3JjIjogImh0dHBzOi8vcGxhY2Vob2xkLmNvLzUxMng1MTIvM2I4MmYzLzZmNjVmYj90ZXh0PU1TIn1dLCJkZWZhdWx0X2ljb24iOiAiaHR0cHM6Ly9wbGFjZWhvbGQuY28vNTEyeDUxMi8zYjgyZjMvNmY2NWZiP3RleHQ9TVMiLCAibmFtZSI6ICJTdGVwLWJ5LVN0ZXAgTWF0aCBTb2x2ZXIiLCAic2hvcnRfbmFtZSI6ICJNYXRoIFNvbHZlciIsICJkaXNwbGF5IjogInN0YW5kYWxvbmUiLCAic3RhcnRfdXJsIjogIi4vIiwgImJhY2tncm91bmRfY29sb3IiOiAiI2Y3ZjlmYiIsICJ0aGVtZV9jb2xvciI6ICIjNGY0NmU1In0=">
+
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Load Inter font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet">
+    <style>
+        /* Custom styles for the animation and look */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f9fb;
+        }
+        .solver-card {
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+        }
+        .highlight {
+            transition: all 0.3s ease-in-out;
+            color: #1e40af; /* Blue-700 */
+            font-weight: 700;
+            background-color: #dbeafe; /* Blue-100 */
+            padding: 2px 4px;
+            border-radius: 4px;
+            margin: 0 2px;
+            box-shadow: 0 0 5px rgba(30, 64, 175, 0.5);
+        }
+        .step-item {
+            animation: fadeIn 0.5s ease-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .pemdas-rule {
+            font-weight: 600;
+            color: #4f46e5; /* Indigo-600 */
+            background-color: #eef2ff; /* Indigo-50 */
+            padding: 2px 6px;
+            border-radius: 6px;
+            display: inline-block;
+            margin-left: 8px;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+
+    <div id="app" class="solver-card w-full max-w-lg bg-white p-8 rounded-xl border border-gray-200">
+        <h1 class="text-3xl font-extrabold text-gray-900 mb-6 text-center">
+            Animated Math Solver
+        </h1>
+        <p class="text-gray-500 mb-6 text-center">
+            Enter a simple expression (e.g., <code>2 + 3 * (4 + 1) - 6</code>)
+        </p>
+
+        <!-- Input Section -->
+        <div class="flex flex-col sm:flex-row gap-3 mb-6">
+            <input type="text" id="expressionInput" placeholder="Enter math expression..."
+                   value="10 - 2 * (3 + 1) / 4 + 5"
+                   class="flex-grow p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-lg font-mono">
+            <button id="solveButton"
+                    class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-6 rounded-lg transition duration-150 ease-in-out shadow-md hover:shadow-lg disabled:opacity-50"
+                    onclick="startSolver()">
+                Solve Step-by-Step
+            </button>
+        </div>
+
+        <!-- Animation and Result Area -->
+        <div class="bg-gray-50 p-5 rounded-lg border border-gray-100 min-h-[150px]">
+            <h2 class="text-xl font-bold text-gray-700 mb-3 border-b pb-2">Steps (PEMDAS/BODMAS)</h2>
+            <div id="stepsContainer" class="space-y-3">
+                <!-- Steps will be injected here -->
+            </div>
+            <div id="resultDisplay" class="mt-4 pt-3 border-t border-gray-200 hidden">
+                <p class="text-2xl font-extrabold text-green-600 flex items-center justify-between">
+                    Final Result: <span id="finalResult"></span>
+                </p>
+            </div>
+            <div id="errorMessage" class="hidden text-red-500 font-medium mt-3"></div>
+        </div>
+        
+    </div>
+
+    <script>
+        // Global delay for the animation speed (in milliseconds)
+        const STEP_DELAY = 1500;
+        const precedence = {
+            '(': 3, // Highest precedence for finding the innermost parentheses block
+            '^': 2,
+            '*': 1,
+            '/': 1,
+            '+': 0,
+            '-': 0
+        };
+        
+        // Map precedence levels to PEMDAS rule names
+        function getRuleName(op, isInsideParentheses) {
+            if (isInsideParentheses) return 'Parentheses (P)';
+            if (op === '^') return 'Exponents (E)';
+            if (op === '*' || op === '/') return 'Multiplication/Division (M/D)';
+            if (op === '+' || op === '-') return 'Addition/Subtraction (A/S)';
+            return 'Unknown';
+        }
+
+        const input = document.getElementById('expressionInput');
+        const stepsContainer = document.getElementById('stepsContainer');
+        const resultDisplay = document.getElementById('resultDisplay');
+        const finalResultSpan = document.getElementById('finalResult');
+        const solveButton = document.getElementById('solveButton');
+        const errorMessageDiv = document.getElementById('errorMessage');
+
+        /**
+         * Cleans the expression and converts it into a token array.
+         * Handles implicit multiplication for parentheses and standardizes tokens.
+         * @param {string} expr The raw expression string.
+         * @returns {Array<string>} Tokenized array.
+         */
+        function tokenize(expr) {
+            // Remove all spaces for clean processing
+            expr = expr.replace(/\s+/g, '');
+            // Simple check for division by zero
+            if (expr.includes("/0")) {
+                throw new Error("Division by zero detected.");
+            }
+            // Add space around operators and parentheses to easily split
+            expr = expr.replace(/([+\-*/^()])/g, ' $1 ');
+            // Handle negative numbers at the start or after an open parenthesis
+            expr = expr.replace(/(\(|\s)-(\d+)/g, '$1 NEG_$2');
+
+            // Split and filter out empty strings
+            let tokens = expr.split(/\s+/).filter(t => t.length > 0);
+
+            // Replace placeholder for negative numbers
+            tokens = tokens.map(t => t.startsWith('NEG_') ? '-' + t.substring(4) : t);
+            
+            // Basic validation to ensure tokens are valid
+            if (tokens.some(t => !/^[0-9.-]+$|^[+\-*/^()]$/.test(t))) {
+                throw new Error("Invalid character or format detected in the expression.");
+            }
+            
+            return tokens;
+        }
+        
+        /**
+         * Finds the sub-expression within the highest precedence block.
+         * If parentheses exist, it finds the innermost one (P).
+         * Otherwise, it finds the highest precedence operation based on PEMDAS.
+         * @param {Array<string>} tokens The current expression tokens.
+         * @returns {{start: number, end: number, expression: string, reason: string} | null} The sub-expression details.
+         */
+        function findNextOperation(tokens) {
+            let startParen = -1;
+            let endParen = -1;
+            let i;
+            let isInsideParentheses = false;
+
+            // 1. Check for Parentheses (P)
+            for (i = 0; i < tokens.length; i++) {
+                if (tokens[i] === '(') {
+                    startParen = i; // Store the most recent open parenthesis
+                } else if (tokens[i] === ')') {
+                    endParen = i;
+                    // Found the innermost parentheses block: ( ... )
+                    if (startParen !== -1) {
+                        isInsideParentheses = true;
+                        // Extract content between the parentheses
+                        const subTokens = tokens.slice(startParen + 1, endParen);
+                        // Now, find the highest precedence operation *within* these tokens
+                        const result = findHighestPrecedenceOperation(subTokens, startParen + 1, true);
+                        if (result) {
+                            // Result includes the indices relative to the main token array
+                            return {
+                                start: result.opIndex - 1,
+                                end: result.opIndex + 1,
+                                expression: tokens.slice(result.opIndex - 1, result.opIndex + 2).join(' '),
+                                reason: result.reason,
+                                opIndex: result.opIndex,
+                                op: result.op
+                            };
+                        }
+                    }
+                    break; // Process the first closed parenthesis found that has an open match
+                }
+            }
+
+            // If no valid parentheses block was found, check the whole expression
+            if (startParen === -1 || startParen > endParen) {
+                return findHighestPrecedenceOperation(tokens, 0, false);
+            }
+            
+            return null; // Should not happen if expression is valid
+        }
+
+        /**
+         * Finds the highest precedence operation (E, M/D, A/S) in a token array.
+         * @param {Array<string>} tokens The tokens to search.
+         * @param {number} offset Index offset for the original array.
+         * @param {boolean} isInsideParentheses Flag if we are searching inside parens.
+         * @returns {{opIndex: number, op: string, reason: string} | null} The operation details.
+         */
+        function findHighestPrecedenceOperation(tokens, offset, isInsideParentheses) {
+            let bestOpIndex = -1;
+            let maxPrecedence = -1;
+            let bestOp = '';
+
+            for (let i = 0; i < tokens.length; i++) {
+                const token = tokens[i];
+                // Check if the token is a supported binary operator
+                if (precedence.hasOwnProperty(token) && token !== '(' && token !== ')') {
+                    const currentPrecedence = precedence[token];
+                    
+                    if (currentPrecedence > maxPrecedence) {
+                        // Found a strictly higher precedence operation
+                        maxPrecedence = currentPrecedence;
+                        bestOpIndex = i + offset;
+                        bestOp = token;
+                    } else if (currentPrecedence === maxPrecedence) {
+                        // Same precedence (e.g., M/D or A/S), process left-to-right
+                        if (bestOpIndex === -1) {
+                             // This is the first one found at this precedence level
+                             bestOpIndex = i + offset;
+                             bestOp = token;
+                        }
+                        // If it's the same precedence, the loop naturally finds the leftmost one first and keeps it.
+                    }
+                }
+            }
+
+            if (bestOpIndex !== -1) {
+                const op = tokens[bestOpIndex - offset];
+                const reason = getRuleName(op, isInsideParentheses);
+
+                return {
+                    opIndex: bestOpIndex,
+                    op: op,
+                    reason: reason
+                };
+            }
+            return null;
+        }
+
+        /**
+         * Generates the HTML for a step, highlighting the sub-expression being solved.
+         * @param {Array<string>} tokens The full token array.
+         * @param {number} opIndex The index of the operator (used to find operands).
+         * @param {string} reason The PEMDAS reason (e.g., "Multiplication").
+         * @param {number} result The calculated result of the operation.
+         * @param {number} stepCount The current step number.
+         * @returns {string} HTML string.
+         */
+        function createStepHTML(tokens, opIndex, reason, result, stepCount) {
+            const expressionHtmlParts = [];
+            const resultValue = Math.round(result * 100000) / 100000; // Limit floating point errors
+
+            // Find the start and end of the sub-expression to highlight
+            // If it's a binary op, it's (opIndex - 1) to (opIndex + 1)
+            let startIndex = opIndex - 1;
+            let endIndex = opIndex + 1;
+            
+            // Special handling for the final step where only a single number remains.
+            if (opIndex === null) {
+                return `<div class="step-item p-3 bg-white rounded-lg border-l-4 border-green-400">
+                    <p class="text-sm text-gray-500 font-medium">Step ${stepCount}: Final Result</p>
+                    <p class="text-xl font-mono text-gray-800 break-all">${tokens.join(' ')}</p>
+                </div>`;
+            }
+
+            // Build the expression string for display
+            for (let i = 0; i < tokens.length; i++) {
+                if (i >= startIndex && i <= endIndex) {
+                    expressionHtmlParts.push(`<span class="highlight">${tokens[i]}</span>`);
+                } else {
+                    expressionHtmlParts.push(tokens[i]);
+                }
+            }
+            const expressionHtml = expressionHtmlParts.join(' ');
+            
+            // Enhanced step description including the specific rule
+            let stepDescription = `Solve: <span class="font-bold text-gray-900">${tokens[opIndex - 1]} ${tokens[opIndex]} ${tokens[opIndex + 1]}</span> <span class="pemdas-rule">${reason}</span>`;
+            
+            // If the reason includes 'Parentheses', we are solving the inner part
+            if (reason.includes('Parentheses')) {
+                 // Check if this step also results in the removal of the parentheses around the result
+                 if (tokens[opIndex - 2] === '(' && tokens[opIndex + 2] === ')') {
+                    stepDescription = `Solve the innermost part: <span class="font-bold text-gray-900">${tokens[opIndex - 1]} ${tokens[opIndex]} ${tokens[opIndex + 1]}</span> <span class="pemdas-rule">Parentheses (P) - ${reason.split(' - ')[1] || reason}</span>`;
+                 }
+            }
+            
+            return `<div class="step-item p-3 bg-white rounded-lg border-l-4 border-indigo-400">
+                <p class="text-sm text-gray-500 font-medium">Step ${stepCount}: ${stepDescription}</p>
+                <p class="text-xl font-mono text-gray-800 break-all">${expressionHtml}</p>
+                <p class="text-sm text-indigo-600 mt-1">Replaced with: <span class="font-mono font-bold">${resultValue}</span></p>
+            </div>`;
+        }
+        
+        // Helper function for the optional parentheses removal step display
+        async function displayParenthesesRemoval(newTokens, i, innerValue, stepCount) {
+             const pRemovedHtml = `
+                <div class="step-item p-3 bg-white rounded-lg border-l-4 border-yellow-400">
+                    <p class="text-sm text-gray-500 font-medium">Step ${stepCount}: Parentheses Removal (P)</p>
+                    <p class="text-xl font-mono text-gray-800 break-all">
+                        ${newTokens.slice(0, i).join(' ')} 
+                        <span class="highlight">( ${innerValue} )</span> 
+                        ${newTokens.slice(i + 3).join(' ')}
+                    </p>
+                    <p class="text-sm text-yellow-600 mt-1">Result: <span class="font-mono font-bold">${innerValue}</span></p>
+                </div>`;
+            stepsContainer.innerHTML += pRemovedHtml;
+            stepsContainer.scrollTop = stepsContainer.scrollHeight;
+            await new Promise(r => setTimeout(r, STEP_DELAY / 2));
+        }
+
+
+        /**
+         * Main function to start the step-by-step solving process.
+         */
+        async function startSolver() {
+            // Reset UI state
+            stepsContainer.innerHTML = '';
+            resultDisplay.classList.add('hidden');
+            solveButton.disabled = true;
+            solveButton.textContent = 'Solving...';
+            errorMessageDiv.classList.add('hidden');
+
+            const rawExpression = input.value;
+            let tokens;
+            try {
+                tokens = tokenize(rawExpression);
+                if (tokens.length === 0) {
+                    throw new Error("Please enter a valid expression.");
+                }
+            } catch (error) {
+                errorMessageDiv.textContent = `Error: ${error.message}`;
+                errorMessageDiv.classList.remove('hidden');
+                solveButton.disabled = false;
+                solveButton.textContent = 'Solve Step-by-Step';
+                return;
+            }
+
+            let currentTokens = [...tokens];
+            let stepCount = 1;
+
+            // Display the initial expression
+            stepsContainer.innerHTML += `
+                <div class="step-item p-3 bg-white rounded-lg border-l-4 border-gray-400">
+                    <p class="text-sm text-gray-500 font-medium">Step 0: Initial Expression</p>
+                    <p class="text-xl font-mono text-gray-800 break-all">${currentTokens.join(' ')}</p>
+                </div>
+            `;
+            await new Promise(r => setTimeout(r, STEP_DELAY));
+            
+            try {
+                // Loop until only one token (the result) remains
+                while (currentTokens.length > 1) {
+                    let nextOp = findNextOperation(currentTokens);
+
+                    if (!nextOp) {
+                        // This indicates an issue like missing operator or unbalanced parentheses.
+                        if (currentTokens.length === 3) {
+                            // Fallback for final three-token expression if findNextOperation failed (e.g., only A/S left)
+                            nextOp = findHighestPrecedenceOperation(currentTokens, 0, false);
+                            if (!nextOp) {
+                                throw new Error("Could not find a valid operation to perform.");
+                            }
+                        } else if (currentTokens.filter(t => t !== '(' && t !== ')').length > 1) {
+                            throw new Error("Malformed expression: Operands not separated by an operator or unbalanced parentheses.");
+                        } else {
+                            // If we reach here, it means we likely have something like [ ( '10' ) ] remaining, 
+                            // and the while loop condition (length > 1) handles final parentheses cleanup.
+                            break; 
+                        }
+                    }
+
+                    const { opIndex, op, reason } = nextOp;
+
+                    // Extract the sub-expression: [Operand1, Operator, Operand2]
+                    const operand1 = currentTokens[opIndex - 1];
+                    const operand2 = currentTokens[opIndex + 1];
+                    
+                    if (isNaN(parseFloat(operand1)) || isNaN(parseFloat(operand2))) {
+                        throw new Error(`Expected numbers but found '${operand1}' and '${operand2}' near operator '${op}'.`);
+                    }
+
+                    let subExpr = `${operand1} ${op} ${operand2}`;
+                    let result;
+                    
+                    // Simple replacement for power operator since eval doesn't use ^
+                    if (op === '^') {
+                        result = Math.pow(parseFloat(operand1), parseFloat(operand2));
+                    } else {
+                        // Use eval for robust calculation of the sub-expression
+                        result = eval(subExpr);
+                    }
+                    
+                    // 1. Create and display the step animation
+                    const stepHtml = createStepHTML(currentTokens, opIndex, reason, result, stepCount);
+                    stepsContainer.innerHTML += stepHtml;
+                    stepsContainer.scrollTop = stepsContainer.scrollHeight; // Scroll to bottom
+                    await new Promise(r => setTimeout(r, STEP_DELAY));
+
+                    // 2. Update the token array: replace [Operand1, Operator, Operand2] with [Result]
+                    
+                    const newTokens = [];
+                    let replaceDone = false;
+                    for (let i = 0; i < currentTokens.length; i++) {
+                        if (i === opIndex - 1 && !replaceDone) {
+                            // This is the start of the sub-expression to replace
+                            newTokens.push(result.toString());
+                            replaceDone = true;
+                            i += 2; // Skip operator and second operand
+                        } else {
+                            newTokens.push(currentTokens[i]);
+                        }
+                    }
+
+                    // A second pass to clean up single tokens inside parentheses like (12) -> 12
+                    let finalCleanedTokens = [];
+                    for (let i = 0; i < newTokens.length; i++) {
+                        if (newTokens[i] === '(' && i + 2 < newTokens.length && newTokens[i + 2] === ')') {
+                            const innerValue = newTokens[i + 1];
+                            if (!isNaN(parseFloat(innerValue))) {
+                                // Found pattern: ( [number] ) -> push [number] and skip parentheses
+                                
+                                // Display parentheses removal step
+                                await displayParenthesesRemoval(newTokens, i, innerValue, stepCount + 0.5);
+                                
+                                finalCleanedTokens.push(innerValue);
+                                i += 2; // Skip number and closing paren
+                            } else {
+                                finalCleanedTokens.push(newTokens[i]); // Push (
+                            }
+                        } else {
+                            finalCleanedTokens.push(newTokens[i]);
+                        }
+                    }
+
+                    currentTokens = finalCleanedTokens;
+                    
+                    stepCount++;
+                }
+
+                // Final cleanup: ensure the result is not wrapped in any final parentheses (e.g., from an edge case)
+                if (currentTokens.length === 3 && currentTokens[0] === '(' && currentTokens[2] === ')') {
+                    currentTokens = [currentTokens[1]];
+                }
+                
+                // Final Result Display
+                finalResultSpan.textContent = currentTokens[0] ? (Math.round(parseFloat(currentTokens[0]) * 100000) / 100000) : "Error";
+                resultDisplay.classList.remove('hidden');
+                
+                // Display the final, definitive result step
+                stepsContainer.innerHTML += createStepHTML(currentTokens, null, 'Final Result', currentTokens[0], stepCount);
+
+
+            } catch (error) {
+                errorMessageDiv.textContent = `Calculation Error: ${error.message}. Please check your expression for syntax issues.`;
+                errorMessageDiv.classList.remove('hidden');
+                console.error("Solver execution error:", error);
+            } finally {
+                solveButton.disabled = false;
+                solveButton.textContent = 'Solve Step-by-Step';
+            }
+        }
+
+        // Initialize the solver on page load
+        window.onload = function() {
+            // Optional: Run on load for the default value
+            // startSolver();
+        }
+    </script>
+</body>
+</html>
