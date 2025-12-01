@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Animated Math Solver</title>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Inter font -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet">
+  <!-- KaTeX for math rendering -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+          onload="renderMathInElement(document.body);"></script>
+
+  <style>
+    body { font-family: 'Inter', sans-serif; background-color: #f7f9fb; }
+    .solver-card { box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1); }
+    .highlight { transition: all 0.3s ease-in-out; color:#1e40af; font-weight:700; background:#dbeafe;
+                 padding:2px 4px; border-radius:4px; margin:0 2px; box-shadow:0 0 5px rgba(30,64,175,0.5);}
+    .step-item { animation: fadeIn 0.5s ease-out; }
+    @keyframes fadeIn { from{opacity:0; transform:translateY(10px);} to{opacity:1; transform:translateY(0);} }
+    .pemdas-rule { font-weight:600; color:#4f46e5; background:#eef2ff; padding:2px 6px; border-radius:6px; margin-left:8px; }
+  </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+
+<div id="app" class="solver-card w-full max-w-lg bg-white p-8 rounded-xl border border-gray-200">
+  <h1 class="text-3xl font-extrabold text-gray-900 mb-6 text-center">Animated Math Solver</h1>
+  <p class="text-gray-500 mb-6 text-center">Enter an expression (e.g., <code>2 + 3 * (4 + 1) - 6</code>)</p>
+
+  <!-- Input -->
+  <div class="flex flex-col sm:flex-row gap-3 mb-6">
+    <input type="text" id="expressionInput" value="10 - 2 * (3 + 1) / 4 + 5"
+           class="flex-grow p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-lg font-mono">
+    <button id="solveButton"
+            class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-6 rounded-lg shadow-md"
+            onclick="startSolver()">Solve</button>
+  </div>
+
+  <!-- Controls -->
+  <div class="flex gap-3 mb-4">
+    <button id="nextStepButton" class="bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg">Next Step</button>
+    <button id="pauseButton" class="bg-yellow-500 hover:bg-yellow-600 text-white py-2 px-4 rounded-lg">Pause</button>
+    <button id="resumeButton" class="bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-lg">Resume</button>
+  </div>
+
+  <!-- Steps -->
+  <div class="bg-gray-50 p-5 rounded-lg border border-gray-100 min-h-[150px]" aria-live="polite">
+    <h2 class="text-xl font-bold text-gray-700 mb-3 border-b pb-2">Steps (PEMDAS)</h2>
+    <div id="stepsContainer" class="space-y-3"></div>
+    <div id="resultDisplay" class="mt-4 pt-3 border-t border-gray-200 hidden">
+      <p class="text-2xl font-extrabold text-green-600 flex items-center justify-between">
+        Final Result: <span id="finalResult"></span>
+      </p>
+    </div>
+    <div id="errorMessage" class="hidden text-red-500 font-medium mt-3"></div>
+  </div>
+</div>
+
+<script>
+  let paused = false;
+  function waitForNextStep() {
+    return new Promise(resolve => {
+      document.getElementById('nextStepButton').onclick = () => resolve();
+      document.getElementById('pauseButton').onclick = () => paused = true;
+      document.getElementById('resumeButton').onclick = () => { paused = false; resolve(); };
+    });
+  }
+
+  async function startSolver() {
+    const stepsContainer = document.getElementById('stepsContainer');
+    const resultDisplay = document.getElementById('resultDisplay');
+    const finalResultSpan = document.getElementById('finalResult');
+    const errorMessageDiv = document.getElementById('errorMessage');
+    stepsContainer.innerHTML = ''; resultDisplay.classList.add('hidden'); errorMessageDiv.classList.add('hidden');
+
+    let expr = document.getElementById('expressionInput').value;
+    try {
+      let result = eval(expr); // simplified for demo
+      stepsContainer.innerHTML += `<div class="step-item p-3 bg-white rounded-lg border-l-4 border-gray-400">
+        <p class="text-sm text-gray-500">Step 0: Initial Expression</p>
+        <p class="text-xl font-mono">${expr}</p></div>`;
+      await waitForNextStep();
+
+      stepsContainer.innerHTML += `<div class="step-item p-3 bg-white rounded-lg border-l-4 border-indigo-400">
+        <p class="text-sm text-gray-500">Step 1: Simplify</p>
+        <p class="text-xl font-mono">Expression → ${result}</p></div>`;
+      await waitForNextStep();
+
+      finalResultSpan.textContent = result;
+      resultDisplay.classList.remove('hidden');
+    } catch (e) {
+      errorMessageDiv.textContent = "Error: " + e.message;
+      errorMessageDiv.classList.remove('hidden');
+    }
+  }
+</script>
+
+<!-- Service Worker Registration -->
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').then(() => console.log("SW registered"));
+  }
+</script>
+</body>
+</html>
